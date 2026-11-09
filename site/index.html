@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leash | Spending limits for NEAR agents</title>
+<meta name="description" content="Give your NEAR agent a budget. Inspect Leash spending limits and recorded activity on Testnet, then deploy your own contract. Read-only inspector; unaudited contract.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#070808">
+<link rel="canonical" href="https://leash-frontend.vercel.app/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='5' fill='%23070808'/%3E%3Cpath d='M10 7v18h14' fill='none' stroke='%2300ec97' stroke-width='3'/%3E%3C/svg%3E">
+<meta property="og:title" content="Leash | Spending limits for NEAR agents">
+<meta property="og:description" content="Give your agent a budget. Not a blank check. Inspect the read-only NEAR Testnet contract.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://leash-frontend.vercel.app/">
+<style>
+  :root {
+    --bg: #070808;
+    --surface: #0d0e0e;
+    --surface-2: #121414;
+    --border: #1d1f1f;
+    --border-strong: #2a2d2d;
+    --text: #ededed;
+    --text-2: #a3a6a6;
+    --text-3: #8a8e8e;
+    --near: #00ec97;
+    --near-dim: rgba(0, 236, 151, 0.12);
+    --danger: #ff6b6b;
+    --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --max: 1200px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  a { color: inherit; text-decoration: none; }
+  button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+  code, pre, .mono { font-family: var(--mono); }
+  :focus-visible { outline: 1px solid var(--near); outline-offset: 2px; }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 24px; }
+  section { border-top: 1px solid var(--border); }
+  .section-pad { padding: 112px 0; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    margin-bottom: 20px;
+  }
+  .h2 {
+    font-size: clamp(30px, 4vw, 44px);
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+    font-weight: 600;
+    max-width: 22ch;
+  }
+  .lede { color: var(--text-2); font-size: 18px; max-width: 60ch; margin-top: 20px; }
+
+  /* Header */
+  header.top {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .top-inner { height: 64px; display: flex; align-items: center; gap: 24px; }
+  .wordmark { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.02em; font-size: 17px; }
+  .mark { width: 22px; height: 22px; flex: none; }
+  nav.primary { display: flex; gap: 22px; margin-left: 12px; }
+  nav.primary a { color: var(--text-2); font-size: 14px; }
+  nav.primary a:hover { color: var(--text); }
+  .top-right { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 12px; color: var(--text-2);
+    border: 1px solid var(--border-strong); padding: 6px 10px; border-radius: 4px;
+    white-space: nowrap;
+  }
+  .badge a { color: var(--text); border-bottom: 1px solid var(--border-strong); }
+  .badge a:hover { border-bottom-color: var(--near); color: var(--near); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--near); flex: none; }
+  .dot.off { background: var(--text-3); box-shadow: none; }
+  .text-link { font-size: 14px; color: var(--text-2); }
+  .text-link:hover { color: var(--text); }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    height: 40px; padding: 0 16px; border-radius: 4px;
+    font-size: 14px; font-weight: 500; white-space: nowrap;
+    border: 1px solid var(--border-strong); color: var(--text); background: var(--surface);
+    transition: border-color .15s, background .15s, color .15s;
+  }
+  .btn:hover { border-color: var(--text-3); background: var(--surface-2); }
+  .btn.primary { background: var(--near); border-color: var(--near); color: #03130c; }
+  .btn.primary:hover { background: #33f5ad; border-color: #33f5ad; }
+
+  /* Hero */
+  .hero { padding: 128px 0 96px; }
+  .hero h1 {
+    font-size: clamp(42px, 6.4vw, 80px);
+    line-height: 1.02;
+    letter-spacing: -0.035em;
+    font-weight: 600;
+    max-width: 16ch;
+  }
+  .hero .sub {
+    margin-top: 28px;
+    font-size: clamp(18px, 2vw, 21px);
+    color: var(--text-2);
+    max-width: 54ch;
+    line-height: 1.5;
+  }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 40px; }
+  .hero-meta {
+    margin-top: 72px;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  }
+  .hero-meta > div { padding: 20px 20px 20px 0; }
+  .hero-meta > div + div { padding-left: 20px; border-left: 1px solid var(--border); }
+  .hero-meta .k { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+  .hero-meta .v { font-family: var(--mono); font-size: 14px; margin-top: 6px; overflow-wrap: anywhere; }
+
+  /* Inspector */
+  .inspector-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; margin-bottom: 40px; }
+  .live-status { font-family: var(--mono); font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 10px; }
+  .panel { border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); }
+  .metric { padding: 24px; border-right: 1px solid var(--border); min-width: 0; }
+  .metric:last-child { border-right: 0; }
+  .metric .k { font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+  .metric .v { font-family: var(--mono); font-size: 22px; margin-top: 14px; letter-spacing: -0.01em; word-break: break-all; }
+  .metric .v small { font-size: 13px; color: var(--text-2); margin-left: 4px; }
+  .metric .s { font-size: 13px; color: var(--text-3); margin-top: 8px; }
+  .metric.hot .v { color: var(--near); }
+  .gauge { margin-top: 14px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .gauge > span { display: block; height: 100%; width: 0%; background: var(--near); transition: width .6s ease; }
+
+  .inspector-body { display: grid; grid-template-columns: 1fr 1.6fr; border-top: 1px solid var(--border); }
+  .pane { padding: 24px; min-width: 0; }
+  .pane + .pane { border-left: 1px solid var(--border); }
+  .pane h3 { font-size: 14px; font-weight: 500; margin-bottom: 18px; color: var(--text); }
+  .kv { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .kv .k { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); }
+  .kv .v { font-family: var(--mono); font-size: 13px; color: var(--text); word-break: break-all; margin-top: 4px; }
+  .verify { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 13px; color: var(--text-3); }
+  .verify pre { margin-top: 10px; font-size: 12px; color: var(--text-2); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 12px; overflow-x: auto; white-space: pre; }
+
+  .feed { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .feed th { text-align: left; font-family: var(--mono); font-weight: 400; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); padding: 0 12px 12px 0; border-bottom: 1px solid var(--border); }
+  .feed td { padding: 14px 12px 14px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .feed tr:last-child td { border-bottom: 0; }
+  .feed .mono { font-size: 12px; }
+  .feed a.hash { color: var(--text); border-bottom: 1px solid var(--border-strong); }
+  .feed a.hash:hover { color: var(--near); border-bottom-color: var(--near); }
+  .feed .memo { color: var(--text-3); font-size: 12px; margin-top: 4px; }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; padding: 3px 8px; border-radius: 3px; border: 1px solid var(--border-strong); white-space: nowrap; }
+  .pill.ok { color: var(--near); border-color: rgba(0, 236, 151, 0.35); background: var(--near-dim); }
+  .pill.bad { color: var(--danger); border-color: rgba(255, 107, 107, 0.35); background: rgba(255, 107, 107, 0.08); }
+  .pill.info { color: var(--text-2); }
+  .feed .muted { color: var(--text-3); }
+
+  /* Architecture */
+  .compare { margin-top: 56px; display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .compare > div { padding: 28px; background: var(--surface); }
+  .compare > div + div { border-left: 1px solid var(--border); }
+  .compare h3 { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+  .compare .tag { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 10px; }
+  .compare .tag.on { color: var(--near); }
+  .compare ul { list-style: none; margin-top: 18px; }
+  .compare li { padding: 14px 0; border-top: 1px solid var(--border); color: var(--text-2); font-size: 15px; }
+  .compare li b { display: block; font-family: var(--mono); font-weight: 400; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 4px; }
+  .compare .on li b { color: var(--near); }
+
+  .principles { margin-top: 56px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--border); border-radius: 6px; }
+  .principle { padding: 28px; border-right: 1px solid var(--border); }
+  .principle:last-child { border-right: 0; }
+  .principle .n { font-family: var(--mono); font-size: 12px; color: var(--text-3); }
+  .principle h4 { font-size: 17px; font-weight: 600; margin: 14px 0 10px; letter-spacing: -0.01em; }
+  .principle p { color: var(--text-2); font-size: 15px; }
+
+  .flow { margin-top: 56px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); padding: 28px; }
+  .flow-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; }
+  .flow-step { padding: 0 18px; border-left: 1px solid var(--border); }
+  .flow-step:first-child { border-left: 0; padding-left: 0; }
+  .flow-step .n { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+  .flow-step .t { font-size: 15px; font-weight: 600; margin: 10px 0 6px; }
+  .flow-step .d { font-size: 14px; color: var(--text-2); }
+
+  /* Quickstart */
+  .qs-grid { display: grid; grid-template-columns: 1fr 1.4fr; gap: 56px; align-items: start; margin-top: 56px; }
+  .qs-steps { list-style: none; counter-reset: s; }
+  .qs-steps li { counter-increment: s; padding: 18px 0 18px 48px; border-top: 1px solid var(--border); position: relative; color: var(--text-2); font-size: 15px; }
+  .qs-steps li::before { content: counter(s, decimal-leading-zero); position: absolute; left: 0; top: 20px; font-family: var(--mono); font-size: 12px; color: var(--text-3); }
+  .qs-steps li b { color: var(--text); font-weight: 600; display: block; margin-bottom: 4px; }
+  .qs-steps code { font-size: 13px; color: var(--text); }
+  .tabs { display: flex; gap: 0; border: 1px solid var(--border); border-bottom: 0; border-radius: 6px 6px 0 0; width: max-content; background: var(--surface); }
+  .tab { padding: 10px 16px; font-size: 13px; color: var(--text-3); border-right: 1px solid var(--border); }
+  .tab:last-child { border-right: 0; }
+  .tab[aria-selected="true"] { color: var(--text); background: var(--surface-2); }
+  .code-wrap { position: relative; border: 1px solid var(--border); border-radius: 0 6px 6px 6px; background: var(--surface); }
+  .code-wrap pre { padding: 22px 22px 22px 22px; overflow-x: auto; font-size: 13px; line-height: 1.7; color: #d7dada; }
+  .copy {
+    position: absolute; top: 12px; right: 12px;
+    font-family: var(--mono); font-size: 11px; color: var(--text-2);
+    border: 1px solid var(--border-strong); background: var(--bg); padding: 5px 9px; border-radius: 3px;
+  }
+  .copy:hover { color: var(--text); border-color: var(--text-3); }
+  .k-c { color: #8a8e8e; }
+  .k-kw { color: #8fd9bd; }
+  .k-s { color: #c9d1a6; }
+  .k-f { color: #e8edf0; }
+
+  /* Footer */
+  footer { border-top: 1px solid var(--border); padding: 40px 0 56px; }
+  .foot { display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; align-items: center; }
+  .foot p { font-size: 14px; color: var(--text-3); }
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; }
+  .tags span { font-family: var(--mono); font-size: 11px; color: var(--text-2); border: 1px solid var(--border-strong); padding: 5px 9px; border-radius: 3px; }
+  .foot-links { display: flex; gap: 20px; font-size: 14px; color: var(--text-2); }
+  .foot-links a:hover { color: var(--text); }
+
+  @media (max-width: 960px) {
+    nav.primary { display: none; }
+    .metrics { grid-template-columns: repeat(2, 1fr); }
+    .metric:nth-child(2) { border-right: 0; }
+    .metric:nth-child(-n+2) { border-bottom: 1px solid var(--border); }
+    .inspector-body { grid-template-columns: 1fr; }
+    .pane + .pane { border-left: 0; border-top: 1px solid var(--border); }
+    .compare { grid-template-columns: 1fr; }
+    .compare > div + div { border-left: 0; border-top: 1px solid var(--border); }
+    .principles { grid-template-columns: 1fr; }
+    .principle { border-right: 0; border-bottom: 1px solid var(--border); }
+    .principle:last-child { border-bottom: 0; }
+    .flow-steps { grid-template-columns: 1fr; gap: 24px; }
+    .flow-step { border-left: 0; padding: 0; }
+    .qs-grid { grid-template-columns: 1fr; gap: 40px; }
+    .hero-meta { grid-template-columns: repeat(2, 1fr); }
+    .hero-meta > div:nth-child(3) { padding-left: 0; border-left: 0; }
+    .hero-meta > div:nth-child(n+3) { border-top: 1px solid var(--border); }
+  }
+  @media (max-width: 640px) {
+    .wrap { padding: 0 18px; }
+    .section-pad { padding: 80px 0; }
+    .hero { padding: 88px 0 64px; }
+    .top-right .text-link { display: none; }
+    .top-right .badge { display: none; }
+    .top-inner { gap: 12px; }
+    .top-right { min-width: 0; }
+    .qs-grid, .qs-grid > *, .qs-steps, .qs-steps li, .code-wrap, .code-wrap pre { min-width: 0; max-width: 100%; }
+    .qs-steps li b, .qs-steps li { overflow-wrap: anywhere; }
+    .code-wrap pre { font-size: 12px; padding: 18px 16px; }
+    .metric { padding: 18px; }
+    .metric .v { font-size: 18px; }
+    .feed thead { display: none; }
+    .feed, .feed tbody, .feed tr, .feed td { display: block; width: 100%; }
+    .feed tr { padding: 16px 0; border-bottom: 1px solid var(--border); }
+    .feed tr:last-child { border-bottom: 0; }
+    .feed td { border: 0; padding: 4px 0; }
+    .feed td[data-label]::before { content: attr(data-label); display: block; font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 2px; }
+    .flow { padding: 22px; }
+    .hero-meta { grid-template-columns: 1fr; }
+    .hero-meta > div { padding: 16px 0; }
+    .hero-meta > div + div { padding-left: 0; border-left: 0; border-top: 1px solid var(--border); }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } * { transition: none !important; } }
+
+  /* The spending ledger is the signature; everything around it stays quiet. */
+  section, main { scroll-margin-top: 80px; }
+  .top-inner { height: 64px; gap: 24px; }
+  .top-right { gap: 16px; }
+  .top-right .badge { display: inline-flex; }
+  header a, .foot-links a { display: inline-flex; align-items: center; min-height: 44px; }
+  .btn, .tab, .copy, summary { min-height: 44px; min-width: 44px; }
+  .btn:disabled { cursor: wait; color: var(--text-3); }
+  .hero { padding: 72px 0 48px; }
+  .hero h1 { max-width: 21ch; font-size: clamp(42px, 5.4vw, 72px); line-height: 1.07; }
+  .hero .sub { margin-top: 24px; max-width: 56ch; }
+  .cta { margin-top: 28px; }
+  .hero-meta { margin-top: 36px; }
+  .section-pad { padding: 72px 0; }
+  #inspector { padding-top: 40px; }
+  .inspector-head { margin-bottom: 28px; align-items: center; }
+  .inspector-head .h2 { font-size: 30px; max-width: none; }
+  .inspector-head .lede { font-size: 15px; max-width: 72ch; margin-top: 12px; }
+  .inspector-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+  .live-status { max-width: 34ch; }
+  .panel, .compare, .principles, .flow { border-radius: 0; }
+  .dot { box-shadow: none; }
+  .gauge > span { transition: none; }
+  .metric .v, .kv .v, .feed { font-variant-numeric: tabular-nums; }
+  .metric .k, .kv .k, .feed th, .hero-meta .k { text-transform: none; letter-spacing: 0; font-size: 12px; }
+  .metric:not(.hot) .v { font-size: 17px; }
+  .metric:nth-child(-n+2) .v { font-size: 14px; word-break: normal; overflow-wrap: anywhere; }
+  .metrics[aria-busy="true"] .v { background: var(--surface-2); }
+  .feed { table-layout: fixed; }
+  .feed th:nth-child(1) { width: 26%; }
+  .feed th:nth-child(2) { width: 32%; }
+  .feed th:nth-child(3) { width: 20%; }
+  .feed th:nth-child(4) { width: 22%; }
+  .feed td { overflow-wrap: anywhere; }
+  .feed th:nth-child(3), .feed td:nth-child(3) { text-align: right; }
+  .feed a.hash { display: inline-flex; align-items: center; min-height: 44px; max-width: 100%; }
+  .feed .pill { white-space: normal; }
+  .feed-note, .risk-note { font-size: 13px; color: var(--text-2); margin-top: 16px; max-width: 76ch; }
+  .risk-note strong { color: var(--text); font-weight: 500; }
+  .qs-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+  .qs-grid > *, .code-wrap, .code-wrap pre { min-width: 0; max-width: 100%; }
+  .code-wrap pre { padding-top: 68px; }
+  .code-wrap pre:focus-visible { outline-offset: -3px; }
+  .qs-steps { overflow-wrap: anywhere; }
+  .principle h3 { font-size: 17px; margin-bottom: 12px; }
+  details.flow-step > summary { cursor: pointer; display: flex; gap: 10px; align-items: center; }
+  .chev { margin-left: auto; width: 8px; height: 8px; border-right: 1px solid var(--text-3); border-bottom: 1px solid var(--text-3); transform: rotate(45deg); flex: none; }
+  details[open] .chev { transform: rotate(-135deg); }
+  .foot-links { flex-wrap: wrap; }
+  @media (max-width: 960px) {
+    .qs-grid { grid-template-columns: minmax(0, 1fr); }
+    .top-right .text-link { display: none; }
+  }
+  @media (max-width: 640px) {
+    .hero { padding: 48px 0 32px; }
+    .hero h1 { font-size: 42px; }
+    .section-pad { padding: 48px 0; }
+    .hero-meta { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .hero-meta > div { padding: 12px 8px 12px 0; }
+    .hero-meta > div + div { border-top: 0; }
+    .hero-meta > div:nth-child(even) { padding-left: 12px; border-left: 1px solid var(--border); }
+    .hero-meta > div:nth-child(n+3) { border-top: 1px solid var(--border); }
+    .hero-meta .v { font-size: 12px; }
+    .top-inner { gap: 12px; }
+    .badge { font-size: 11px; }
+    .metric { padding: 16px; }
+    .metric:not(.hot) .v { font-size: 14px; }
+    .pane { padding: 18px; }
+    .feed th:nth-child(3), .feed td:nth-child(3) { text-align: left; }
+    .code-wrap pre { padding-top: 68px; }
+  }
+</style>
+<noscript><style>
+  .tabs, .copy, #refresh-btn, #live-text { display: none; }
+  #code-ts[hidden] { display: block; margin-top: 24px; }
+  .metrics[aria-busy="true"] .v { background: none; }
+</style></noscript>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <a class="wordmark" href="#top" aria-label="Leash home">
+      <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="1" y="1" width="22" height="22" rx="3" fill="none" stroke="#ededed" stroke-width="1.5"/>
+        <path d="M7 6v12h10" fill="none" stroke="#00ec97" stroke-width="2.25" stroke-linecap="square"/>
+      </svg>
+      Leash
+    </a>
+    <nav class="primary" aria-label="Primary">
+      <a href="#inspector">Inspector</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#security">Security</a>
+      <a href="#quickstart">Quickstart</a>
+    </nav>
+    <div class="top-right">
+      <a class="badge" href="https://testnet.nearblocks.io/address/leash-0445ff.testnet" target="_blank" rel="noopener noreferrer" aria-label="NEAR Testnet contract in explorer">
+        <span class="dot off" id="header-dot" aria-hidden="true"></span>
+        <span>NEAR Testnet</span>
+      </a>
+      <a class="text-link" id="repo-link" href="https://github.com/0xdfinity/Leash" target="_blank" rel="noopener noreferrer">Source code</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- HERO -->
+<section class="reveal hero">
+  <div class="wrap">
+    <h1>Give your agent a budget. Not a blank check.</h1>
+    <p class="sub">Leash limits what a NEAR agent can spend per payment and over a 24-hour window. Inspect the public contract, then deploy your own.</p>
+    <div class="cta">
+      <a class="btn primary" href="#inspector">Inspect spending limits</a>
+      <a class="btn" href="#quickstart">Set up your contract</a>
+    </div>
+    <p class="risk-note"><strong>Testnet only. Unaudited contract.</strong> This read-only inspector does not connect a wallet or move funds. Not intended for production custody.</p>
+    <div class="hero-meta" aria-label="Deployment facts">
+      <div>
+        <div class="k">Network</div>
+        <div class="v">NEAR Testnet</div>
+      </div>
+      <div>
+        <div class="k">Contract</div>
+        <div class="v">leash-0445ff.testnet</div>
+      </div>
+      <div>
+        <div class="k">Enforcement</div>
+        <div class="v">Contract + scoped key</div>
+      </div>
+      <div>
+        <div class="k">License</div>
+        <div class="v">MIT</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INSPECTOR -->
+<section id="inspector" class="reveal section-pad">
+  <div class="wrap">
+    <div class="inspector-head">
+      <div>
+        <h2 class="h2">Spending limits, on the record.</h2>
+        <p class="lede">Read-only state for leash-0445ff.testnet. Allowance uses the timestamp of the same finalized block as the configuration, not your device clock.</p>
+      </div>
+      <div class="inspector-actions">
+        <div class="live-status" role="status">
+          <span class="dot off" id="live-dot" aria-hidden="true"></span>
+          <span id="live-text">Loading contract state…</span>
+        </div>
+        <button class="btn" id="refresh-btn" type="button" disabled>Loading…</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="metrics" id="metrics" aria-busy="true">
+        <div class="metric">
+          <div class="k">Owner account</div>
+          <div class="v" id="m-owner">—</div>
+          <div class="s">Authorizes cap changes</div>
+        </div>
+        <div class="metric">
+          <div class="k">Agent account</div>
+          <div class="v" id="m-agent">—</div>
+          <div class="s">Configured spending account</div>
+        </div>
+        <div class="metric hot">
+          <div class="k">Remaining window allowance</div>
+          <div class="v"><span id="m-remaining">—</span><small>NEAR</small></div>
+          <div class="gauge" aria-hidden="true"><span id="m-gauge"></span></div>
+          <div class="s" id="m-window">Waiting for chain time</div>
+        </div>
+        <div class="metric">
+          <div class="k">Per-payment cap</div>
+          <div class="v"><span id="m-pertx">—</span><small>NEAR</small></div>
+          <div class="s" id="m-nonce">Accepted spend requests —</div>
+        </div>
+      </div>
+
+      <div class="inspector-body">
+        <div class="pane">
+          <h3>Contract configuration</h3>
+          <div class="kv">
+            <div>
+              <div class="k">24-hour window cap</div>
+              <div class="v"><span id="c-daily">—</span> NEAR</div>
+            </div>
+            <div>
+              <div class="k">Recorded spend in stored window</div>
+              <div class="v"><span id="c-spent">—</span> NEAR</div>
+            </div>
+            <div>
+              <div class="k">Daily window</div>
+              <div class="v">24 h (86400000000000 ns)</div>
+            </div>
+            <div>
+              <div class="k">Window start (ns)</div>
+              <div class="v" id="c-wstart">—</div>
+            </div>
+            <div>
+              <div class="k">Contract</div>
+              <div class="v">leash-0445ff.testnet</div>
+            </div>
+          </div>
+          <div class="verify">
+            Verify the same state from your terminal. This is a read-only view call.
+            <pre id="verify-cmd" tabindex="0" aria-label="Read-only contract query command">curl -s https://rpc.testnet.near.org -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"query","params":{"request_type":"call_function","finality":"final","account_id":"leash-0445ff.testnet","method_name":"get_config","args_base64":"e30="}}'</pre>
+          </div>
+        </div>
+
+        <div class="pane">
+          <h3>Recorded activity on Testnet</h3>
+          <p class="feed-note" style="margin:0 0 20px">Seven recorded transaction hashes. Amounts describe submitted actions, not confirmed transfers.</p>
+          <table class="feed">
+            <thead>
+              <tr>
+                <th>Event</th>
+                <th>Transaction</th>
+                <th>Amount</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="feed-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <p class="feed-note">Outcomes are unverified unless returned by the transaction RPC. Refresh checks state and activity once; there is no automatic polling. Allowance is a spending limit, not the contract balance.</p>
+    <noscript><p class="risk-note">JavaScript is off. Live values are unavailable. Use the read-only terminal command above or the contract explorer in the footer to inspect state and activity.</p></noscript>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture" class="reveal section-pad">
+  <div class="wrap">
+    <h2 class="h2">A prompt cannot spend what the contract refuses.</h2>
+    <p class="lede">Most agent setups hand a model an API key and trust a client-side check to stop it. Leash moves the limit into the chain: the agent holds a function-call key scoped to one contract and one method, and the contract itself rejects any spend over the cap.</p>
+
+    <div class="compare">
+      <div>
+        <p class="tag">Typical API-key agent</p>
+        <h3>Limits live in the client</h3>
+        <ul>
+          <li><b>Where it is enforced</b>Application code or a rate limiter in the agent process, outside any shared authority.</li>
+          <li><b>Failure mode</b>A bug, a prompt injection, or a modified client bypasses the check. The key still works.</li>
+          <li><b>Key scope</b>A long-lived secret with full account access. Revocation means rotating the key everywhere.</li>
+          <li><b>Spend ceiling</b>Whatever the client decides. Daily totals are kept in a database that the agent can reach.</li>
+          <li><b>Audit</b>Logs written by the same process that might be compromised.</li>
+        </ul>
+      </div>
+      <div class="on">
+        <p class="tag on">Leash on NEAR</p>
+        <h3>Limits live in the contract and the VM</h3>
+        <ul>
+          <li><b>Where it is enforced</b>Contract code executed by every NEAR validator. The per-transaction cap and the 24 hour daily cap are checked on-chain before any transfer.</li>
+          <li><b>Failure mode</b>An over-cap call panics and reverts. The attempt is recorded as a failed transaction with the reason.</li>
+          <li><b>Key scope</b>A function-call key can be limited to your Leash contract and its spend method. Inspect view_access_key_list separately to verify the agent has no broader access.</li>
+          <li><b>Spend ceiling</b>Owner-set caps stored in contract state. The agent cannot raise them; set_caps requires the owner key.</li>
+          <li><b>Audit</b>Every decision is a public transaction with a hash, verifiable without trusting Leash or the agent host.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="flow" aria-label="Spend lifecycle">
+      <div class="flow-steps">
+        <details class="flow-step" open>
+          <summary><span class="n">01</span><span class="t">Agent proposes</span><span class="chev" aria-hidden="true"></span></summary>
+          <div class="d">The agent signs spend(to, amount) with its function-call key.</div>
+        </details>
+        <details class="flow-step">
+          <summary><span class="n">02</span><span class="t">Per-tx check</span><span class="chev" aria-hidden="true"></span></summary>
+          <div class="d">Amount above per_tx_cap panics with "over per-tx cap". Nothing moves.</div>
+        </details>
+        <details class="flow-step">
+          <summary><span class="n">03</span><span class="t">Daily window</span><span class="chev" aria-hidden="true"></span></summary>
+          <div class="d">Spend is added to the 24 h window. Totals above daily_cap are rejected.</div>
+        </details>
+        <details class="flow-step">
+          <summary><span class="n">04</span><span class="t">Settlement</span><span class="chev" aria-hidden="true"></span></summary>
+          <div class="d">Accepted calls schedule a transfer and update stored spend. Check transfer receipts too; a scheduled transfer can fail.</div>
+        </details>
+        <details class="flow-step">
+          <summary><span class="n">05</span><span class="t">Owner override</span><span class="chev" aria-hidden="true"></span></summary>
+          <div class="d">Only the owner key can call set_caps. The change is a signed, public transaction.</div>
+        </details>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECURITY -->
+<section id="security" class="reveal section-pad">
+  <div class="wrap">
+    <h2 class="h2">Limit spending. Keep the risks visible.</h2>
+    <p class="lede">Caps apply to calls through this contract. Correct deployment and key scope matter. The inspector does not verify access keys, contract upgrades, or available balance.</p>
+
+    <div class="principles">
+      <div class="principle">
+        <h3>Per-payment cap</h3>
+        <p>No single spend can exceed the owner-set per_tx_cap. An over-cap call reverts on-chain with the reason in the receipt.</p>
+      </div>
+      <div class="principle">
+        <h3>24-hour window cap</h3>
+        <p>Spend accumulates in a 24 hour window tracked in contract state. Once daily_cap is reached, further spend is refused until the window rolls over.</p>
+      </div>
+      <div class="principle">
+        <h3>Scoped permission keys</h3>
+        <p>Restrict the agent key to spend on your contract. Other access keys can weaken this boundary; inspect the full key list independently. The configured owner controls cap changes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- QUICKSTART -->
+<section id="quickstart" class="reveal section-pad">
+  <div class="wrap">
+    <h2 class="h2">Start with a read. Deploy for your agent.</h2>
+    <p class="lede">These examples only read get_config. The public Testnet contract belongs to its configured owner; it is not a wallet you can adopt or control.</p>
+
+    <div class="qs-grid">
+      <ol class="qs-steps">
+        <li><b>Inspect the public contract</b>Run a read-only example. get_config returns the configured accounts, caps, stored window spend, window start, and nonce. It does not return an effective remaining allowance.</li>
+        <li><b>Deploy your own contract on Testnet</b>Review the source and initialize your deployment with your owner and agent accounts. Do not fund the public example as your wallet.</li>
+        <li><b>Restrict the agent key</b>Scope a function-call key to your contract and its spend method. Remove other agent access keys as appropriate and verify the key list. Keep the owner key off the agent host.</li>
+        <li><b>Integrate payments separately</b>The call is spend(to, amount), with amount in yoctoNEAR. Handle rejected calls and inspect transfer receipts. These read-only examples do not sign transactions.</li>
+      </ol>
+
+      <div>
+        <div class="tabs" role="tablist" aria-label="Language">
+          <button class="tab" id="tab-rust" role="tab" aria-controls="code-rust" aria-selected="true" tabindex="0" data-tab="rust" type="button">Rust</button>
+          <button class="tab" id="tab-ts" role="tab" aria-controls="code-ts" aria-selected="false" tabindex="-1" data-tab="ts" type="button">TypeScript / JS</button>
+        </div>
+        <div class="code-wrap" id="code-rust" role="tabpanel" aria-labelledby="tab-rust" tabindex="0">
+          <button class="copy" type="button" data-copy="rust" aria-live="polite">Copy</button>
+<pre tabindex="0" aria-label="Rust read-only example"><code id="src-rust"><span class="k-c">// Cargo.toml under [dependencies]:
+// reqwest = { version = "0.12", features = ["blocking", "json"] }
+// serde_json = "1"
+// Save as src/main.rs, then run: cargo run</span>
+<span class="k-kw">use</span> serde_json::{json, Value};
+<span class="k-kw">use</span> std::time::Duration;
+
+<span class="k-kw">fn</span> main() -&gt; Result&lt;(), Box&lt;dyn std::error::Error&gt;&gt; {
+    let client = reqwest::blocking::Client::builder()
+        .timeout(Duration::from_secs(10)).build()?;
+    let response: Value = client
+        .post("https://rpc.testnet.near.org")
+        .json(&amp;json!({
+            "jsonrpc": "2.0", "id": 1, "method": "query",
+            "params": {
+                "request_type": "call_function",
+                "finality": "final",
+                "account_id": "leash-0445ff.testnet",
+                "method_name": "get_config",
+                "args_base64": "e30="
+            }
+        }))
+        .send()?.error_for_status()?.json()?;
+    if response.get("error").is_some() {
+        return Err("RPC request failed".into());
+    }
+    let bytes: Vec&lt;u8&gt; = serde_json::from_value(
+        response["result"]["result"].clone()
+    )?;
+    let config: Value = serde_json::from_slice(&amp;bytes)?;
+    println!("{}", serde_json::to_string_pretty(&amp;config)?);
+    Ok(())
+}</code></pre>
+        </div>
+
+        <div class="code-wrap" id="code-ts" role="tabpanel" aria-labelledby="tab-ts" tabindex="0" hidden>
+          <button class="copy" type="button" data-copy="ts" aria-live="polite">Copy</button>
+<pre tabindex="0" aria-label="JavaScript read-only example"><code id="src-ts"><span class="k-c">// Node.js 20+. No packages or keys required.
+// Save as read-config.mjs, then: node read-config.mjs
+// Also valid TypeScript with ES2022 + DOM libraries.</span>
+<span class="k-kw">const</span> response = await fetch(
+  "https://rpc.testnet.near.org",
+  {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(10_000),
+    body: JSON.stringify({
+      jsonrpc: "2.0", id: 1, method: "query",
+      params: {
+        request_type: "call_function",
+        finality: "final",
+        account_id: "leash-0445ff.testnet",
+        method_name: "get_config",
+        args_base64: "e30="
+      }
+    })
+  }
+);
+if (!response.ok) throw new Error("RPC HTTP failure");
+const payload = await response.json();
+if (payload.error) throw new Error("RPC request failed");
+const bytes = payload.result?.result;
+if (!Array.isArray(bytes) || !bytes.every(
+  n =&gt; Number.isInteger(n) &amp;&amp; n &gt;= 0 &amp;&amp; n &lt;= 255
+)) throw new Error("Invalid RPC bytes");
+const config = JSON.parse(
+  new TextDecoder().decode(Uint8Array.from(bytes))
+);
+console.log(config);</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap foot">
+    <div>
+      <p>Copyright 2026 Leash. Released under the MIT License.</p>
+      <p class="risk-note">NEAR Testnet. Unaudited. Review the contract before use.</p>
+    </div>
+    <div class="foot-links">
+      <a href="https://testnet.nearblocks.io/address/leash-0445ff.testnet" target="_blank" rel="noopener noreferrer">Contract</a>
+      <a href="https://docs.near.org" target="_blank" rel="noopener noreferrer">NEAR Docs</a>
+      <a href="https://github.com/0xdfinity/Leash" target="_blank" rel="noopener noreferrer">Source code</a>
+      <a href="#security">Security</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var RPC = "https://rpc.testnet.near.org";
+  var CONTRACT = "leash-0445ff.testnet";
+  var EXPLORER = "https://testnet.nearblocks.io/txns/";
+  var YOCTO = 10n ** 24n;
+  var WINDOW_NS = 86400000000000n;
+  var busy = false;
+
+  // Recorded actions, not evidence of their outcomes or current access-key state.
+  var TXS = [
+    { kind: "Owner funding", hash: "8dmXC4B9tj1DCgSVaX9UcEpNW6h2nTgD4ZMTQjwuMH2E", sender: "leash-owner-0445ff.testnet", amount: "3.0000 NEAR", memo: "Deposit request" },
+    { kind: "Agent key scope", hash: "5K2AUrBU8NMnLX6Vi7FCATtzSEBdSB96vBhGoTGXmDcf", sender: "leash-agent-0445ff.testnet", amount: "0.0000 NEAR", memo: "Add spend-only function-call key" },
+    { kind: "Key removal", hash: "HuZZEmsxJV2dUEGuy3D448kcutDUfWRgkaZKvTrs6DBz", sender: "leash-agent-0445ff.testnet", amount: "0.0000 NEAR", memo: "Remove agent full-access key" },
+    { kind: "Spend request", hash: "E5x9x7WaGfpZKYs5tyUg6bJ921MkC8ndXHpaL5oLVj1V", sender: "leash-agent-0445ff.testnet", amount: "1.0000 NEAR", memo: "Initial payment request" },
+    { kind: "Spend request", hash: "5uyNnjfhXXrmARmkqAK2ZQNbuq9WHg89MrSXtoFamCjK", sender: "leash-agent-0445ff.testnet", amount: "3.0000 NEAR", memo: "Payment request before cap change" },
+    { kind: "Cap change", hash: "GXABWTxgx23CYwfkaPEabzw17NvFtWBFW3Hk4bk7Dpwg", sender: "leash-owner-0445ff.testnet", amount: "2 → 4 NEAR cap", memo: "set_caps request; 1 yoctoNEAR deposit" },
+    { kind: "Spend request", hash: "7E9SJr34f4b4nTuhTdeowVpF7GZXTwoL1jSYcHZnMwu1", sender: "leash-agent-0445ff.testnet", amount: "3.0000 NEAR", memo: "Payment request after cap change" }
+  ];
+
+  var $ = function (id) { return document.getElementById(id); };
+  // Truncate to four places: never round a spending limit upward.
+  function fmt(value) {
+    var n = BigInt(value);
+    return String(n / YOCTO) + "." + String((n % YOCTO) / (10n ** 20n)).padStart(4, "0");
+  }
+  function uint(value, bits) {
+    if (typeof value !== "string" || !/^(0|[1-9][0-9]{0,38})$/.test(value)) throw new Error("Invalid integer");
+    var n = BigInt(value);
+    if (n >= (1n << BigInt(bits))) throw new Error("Integer out of range");
+    return n;
+  }
+  function account(value) {
+    if (typeof value !== "string" || value.length < 2 || value.length > 64 || !/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/.test(value)) throw new Error("Invalid account");
+    return value;
+  }
+  async function rpc(method, params) {
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, 10000);
+    try {
+      var response = await fetch(RPC, {
+        method: "POST", signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: "leash", method: method, params: params })
+      });
+      if (!response.ok) throw new Error("RPC HTTP failure");
+      var payload = await response.json();
+      if (!payload || payload.error || !payload.result) throw new Error("RPC result unavailable");
+      return payload.result;
+    } finally { clearTimeout(timer); }
+  }
+
+  async function readConfig() {
+    var result = await rpc("query", {
+      request_type: "call_function", finality: "final",
+      account_id: CONTRACT, method_name: "get_config", args_base64: "e30="
+    });
+    var bytes = result.result;
+    if (!Array.isArray(bytes) || !bytes.length || bytes.length > 65536 || !bytes.every(function (n) {
+      return Number.isInteger(n) && n >= 0 && n <= 255;
+    })) throw new Error("Invalid config bytes");
+    var text = new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(bytes));
+    var cfg = JSON.parse(text);
+    if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) throw new Error("Invalid config");
+    account(cfg.owner); account(cfg.agent);
+    uint(cfg.per_tx_cap, 128); uint(cfg.daily_cap, 128); uint(cfg.spent_in_window, 128);
+    // Preserve bare JSON u64 integers before JavaScript can round nanoseconds.
+    // String tokens are matched first and left untouched.
+    var exact = JSON.parse(text.replace(/"(?:\\.|[^"\\])*"|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, function (token, number) {
+      return number && /^\d+$/.test(number) ? '"' + number + '"' : token;
+    }));
+    cfg.window_start = exact.window_start;
+    cfg.nonce = exact.nonce;
+    uint(cfg.window_start, 64); uint(cfg.nonce, 64);
+    if (typeof result.block_hash !== "string" || !result.block_hash || result.block_hash.length > 128) throw new Error("Missing block hash");
+    return { cfg: cfg, blockHash: result.block_hash };
+  }
+
+  function clearConfig() {
+    ["m-owner", "m-agent", "m-remaining", "m-pertx", "c-daily", "c-spent", "c-wstart"].forEach(function (id) { $(id).textContent = "—"; });
+    $("m-gauge").style.width = "0%";
+    $("m-nonce").textContent = "Accepted spend requests —";
+    $("m-window").textContent = "Allowance unavailable";
+    $("live-dot").className = "dot off";
+    $("header-dot").className = "dot off";
+  }
+  function renderConfig(cfg) {
+    $("m-owner").textContent = cfg.owner;
+    $("m-agent").textContent = cfg.agent;
+    $("m-pertx").textContent = fmt(cfg.per_tx_cap);
+    $("c-daily").textContent = fmt(cfg.daily_cap);
+    $("c-spent").textContent = fmt(cfg.spent_in_window);
+    $("m-nonce").textContent = "Accepted spend requests " + cfg.nonce;
+    $("c-wstart").textContent = cfg.window_start;
+  }
+  function renderAllowance(cfg, timestamp) {
+    var now = uint(timestamp, 64), start = uint(cfg.window_start, 64);
+    if (now < start) throw new Error("Invalid window time");
+    var expired = now - start >= WINDOW_NS;
+    var daily = BigInt(cfg.daily_cap);
+    var spent = expired ? 0n : BigInt(cfg.spent_in_window);
+    var remaining = daily > spent ? daily - spent : 0n;
+    $("m-remaining").textContent = fmt(remaining);
+    $("m-gauge").style.width = (daily === 0n ? "0" : String(remaining * 100n / daily)) + "%";
+    $("m-window").textContent = expired
+      ? "Stored window expired. Effective spend is 0; resets on next spend."
+      : "Effective spend " + fmt(spent) + " of " + fmt(daily) + " NEAR";
+  }
+  function node(tag, text, className) {
+    var el = document.createElement(tag);
+    if (text !== undefined) el.textContent = text;
+    if (className) el.className = className;
+    return el;
+  }
+  function renderFeed(states) {
+    var rows = TXS.map(function (t, i) {
+      var row = node("tr");
+      var event = node("td"); event.dataset.label = "Event";
+      event.append(node("div", t.kind), node("div", t.memo, "memo"));
+      var transaction = node("td"); transaction.dataset.label = "Transaction";
+      var link = node("a", t.hash.slice(0, 8) + "…" + t.hash.slice(-5), "hash mono");
+      link.href = EXPLORER + t.hash; link.target = "_blank"; link.rel = "noopener noreferrer";
+      link.setAttribute("aria-label", "Inspect transaction " + t.hash);
+      transaction.append(link, node("div", t.sender, "memo"));
+      var amount = node("td", t.amount, "mono"); amount.dataset.label = "Amount";
+      var status = node("td"); status.dataset.label = "Status";
+      var state = states[i];
+      status.append(node("span", state === "ok" ? "SUCCESS" : state === "failed" ? "FAILED" : state === "pending" ? "CHECKING" : "UNVERIFIED", "pill " + (state === "ok" ? "ok" : state === "failed" ? "bad" : "info")));
+      row.append(event, transaction, amount, status);
+      return row;
+    });
+    $("feed-body").replaceChildren.apply($("feed-body"), rows);
+  }
+  async function txState(t) {
+    try {
+      var result = await rpc("EXPERIMENTAL_tx_status", { tx_hash: t.hash, sender_account_id: t.sender, wait_until: "FINAL" });
+      var status = result.status;
+      if (!status || typeof status !== "object") return "unknown";
+      if (Object.prototype.hasOwnProperty.call(status, "Failure")) return "failed";
+      // A failed receipt also prevents presenting an overall success.
+      var receipts = Array.isArray(result.receipts_outcome) ? result.receipts_outcome : [];
+      if (receipts.some(function (r) { return r && r.outcome && r.outcome.status && Object.prototype.hasOwnProperty.call(r.outcome.status, "Failure"); })) return "failed";
+      return typeof status.SuccessValue === "string" ? "ok" : "unknown";
+    } catch (_) { return "unknown"; }
+  }
+  async function refresh() {
+    if (busy) return;
+    busy = true;
+    var complete = false;
+    $("refresh-btn").disabled = true;
+    $("refresh-btn").textContent = "Loading…";
+    $("metrics").setAttribute("aria-busy", "true");
+    clearConfig();
+    $("live-text").textContent = "Loading contract state…";
+    renderFeed(TXS.map(function () { return "pending"; }));
+    // Outcomes are independent: config success cannot establish transaction success.
+    var activity = Promise.all(TXS.map(txState)).then(renderFeed);
+    try {
+      var snapshot = await readConfig();
+      renderConfig(snapshot.cfg);
+      try {
+        var block = await rpc("block", { block_id: snapshot.blockHash });
+        renderAllowance(snapshot.cfg, block.header && block.header.timestamp_nanosec);
+        $("live-dot").className = "dot";
+        $("header-dot").className = "dot";
+        $("live-text").textContent = "State read from finalized Testnet block";
+        complete = true;
+      } catch (_) {
+        $("m-window").textContent = "Chain time unavailable. Allowance cannot be determined.";
+        $("live-text").textContent = "Configuration read; block time unavailable. Retry refresh.";
+      }
+    } catch (_) {
+      clearConfig();
+      $("live-text").textContent = "Contract state unavailable. Retry refresh.";
+    } finally {
+      $("metrics").setAttribute("aria-busy", "false");
+      await activity;
+      busy = false;
+      $("refresh-btn").disabled = false;
+      $("refresh-btn").textContent = complete ? "Refresh" : "Retry refresh";
+    }
+  }
+  $("refresh-btn").addEventListener("click", refresh);
+  refresh();
+
+  // Copy buttons
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var src = $("src-" + btn.getAttribute("data-copy")).textContent;
+      var done = function () { btn.textContent = "Copied"; setTimeout(function () { btn.textContent = "Copy"; }, 1400); };
+      var failed = function () { btn.textContent = "Copy failed"; setTimeout(function () { btn.textContent = "Copy"; }, 1800); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(src).then(done, failed);
+      else if (document.queryCommandSupported && document.queryCommandSupported("copy")) {
+        var area = document.createElement("textarea");
+        area.value = src; area.setAttribute("readonly", "");
+        area.style.position = "fixed"; area.style.opacity = "0";
+        document.body.appendChild(area); area.select();
+        var copied = false;
+        try { copied = document.execCommand("copy"); } catch (e) { copied = false; }
+        area.remove();
+        (copied ? done : failed)();
+      } else failed();
+    });
+  });
+
+  // Automatic activation with a single tab stop inside the tablist.
+  var tabs = Array.from(document.querySelectorAll(".tab"));
+  function selectTab(tab) {
+    tabs.forEach(function (t) {
+      var selected = t === tab;
+      t.setAttribute("aria-selected", String(selected));
+      t.tabIndex = selected ? 0 : -1;
+      $(t.getAttribute("aria-controls")).hidden = !selected;
+    });
+  }
+  tabs.forEach(function (tab, index) {
+    tab.addEventListener("click", function () { selectTab(tab); });
+    tab.addEventListener("keydown", function (event) {
+      var next;
+      if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+      else if (event.key === "ArrowLeft") next = (index + tabs.length - 1) % tabs.length;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = tabs.length - 1;
+      else return;
+      event.preventDefault();
+      selectTab(tabs[next]);
+      tabs[next].focus();
+    });
+  });
+})();
+</script>
+</body>
+</html>
